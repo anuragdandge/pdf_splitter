@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Splitter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Splitter</h1>
+
+        <input type="file" name="file" id="fileInput" accept=".pdf">
+        <label for="fileInput" class="button">Choose PDF</label>
+
+        <span id="selected-file"></span> <br> <br>
+
+        <input type="submit" value="Split PDF" class="button" id="splitButton">
+
+        <div id="loading" style="display: none;">Processing...</div> <br>
+
+        <div id="results" class="grid-container"></div> 
+    </div>
+
+    <script>
+        const form = document.getElementById('fileInput');
+        const selectedFileSpan = document.getElementById('selected-file');
+        const resultsDiv = document.getElementById('results');
+        const loadingDiv = document.getElementById('loading');
+        const splitButton = document.getElementById('splitButton');
+
+        form.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            selectedFileSpan.textContent = `Selected File: ${file.name}`;
+        });
+
+        splitButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                resultsDiv.innerHTML = '<p style="color: red;">Please select a PDF file.</p>';
+                return;
+            }
+
+            loadingDiv.style.display = 'block'; // Show loading indicator
+            splitButton.disabled = true;      // Disable button while processing
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/split', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingDiv.style.display = 'none'; // Hide loading
+                splitButton.disabled = false;     // Enable button
+
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                } else {
+                    resultsDiv.innerHTML = ''; // Clear previous results
+                    data.download_links.forEach(link => {
+                        const fileName = link.split('/').pop();
+                        
+                        // Create grid item for each download link
+                        const gridItem = document.createElement('div');
+                        gridItem.classList.add('grid-item');
+                        gridItem.innerHTML = `<a href="${link}" download>${fileName}</a>`; // Add link to grid item
+
+                        resultsDiv.appendChild(gridItem); // Append grid item to results container
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingDiv.style.display = 'none'; 
+                splitButton.disabled = false; 
+                resultsDiv.innerHTML = '<p style="color: red;">An error occurred.</p>';
+            });
+        });
+    </script>
+</body>
+</html>
